@@ -21,7 +21,6 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
   this->SetNumberOfRequiredInputs(2);
   m_FullyConnected = false;
   m_MarkBoundaryLine = true;
-  m_PadImageBoundary = true;
 }
 
 
@@ -110,12 +109,14 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 
   // initialization - iterate over seed and control images to compute
   // the mean of each region
+  StatsMapType StatsMap;
+  this->InitMap(StatsMap, this->GetMarkerImage(), this->GetInput());
 
   // FAH (in french: File d'Attente Hierarchique)
-  typedef PriorityQueue< InputImagePixelType, IndexType > PriorityQueueType;
+  typedef PriorityQueue< RealType, IndexType > PriorityQueueType;
   PriorityQueueType fah;
   //---------------------------------------------------------------------------
-  // Meyer's algorithm
+  // based on Meyer's algorithm for watershed transform
   //---------------------------------------------------------------------------
   if( m_MarkBoundaryLine )
     {
@@ -178,10 +179,12 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	  {
 	  if ( !nsIt.Get() && nmIt.Get() == bgLabel )
 	    {
-	    // this neighbor is a background pixel and is not already processed; add its
-	    // index to fah
-	    fah.Push( niIt.Get(), markerIt.GetIndex() + nmIt.GetNeighborhoodOffset() );
-	    // mark it as already in the fah to avoid adding it several times
+	    // add neighbors to the queue if they are background, and
+	    // haven't been added to the queue already
+	    RealType priority=computePriority(StatsMap, markerPixel, niIt.Get());
+	    fah.Push(priority, markerIt.GetIndex() + nmIt.GetNeighborhoodOffset() );
+	    // mark it as already in the fah to avoid adding it
+	    // several times  
 	    nsIt.Set( true );
 	    }
 	  }
@@ -207,8 +210,11 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
     while( !fah.Empty() )
       {
       // store the current vars
-      const InputImagePixelType & currentValue = fah.FrontKey();
       const IndexType & idx = fah.FrontValue();
+      // remove the processed pixel of the queue -- different to the
+      // watershed because new pixels may get added with higher
+      // priority than the current one
+      fah.Pop();
       
       // move the iterators to the right place
       OffsetType shift = idx - outputIt.GetIndex();
@@ -238,6 +244,8 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	{
 	// set the marker value
 	outputIt.SetCenterPixel( marker );
+	// update the region statistics
+	updateRegion(StatsMap, marker, inputIt.GetCenterPixel());
 	// and propagate to the neighbors
 	for (niIt = inputIt.Begin(), nsIt = statusIt.Begin();
 	     niIt != inputIt.End();
@@ -247,10 +255,10 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	    {
 	    // the pixel is not yet processed. add it to the fah
 	    InputImagePixelType grayVal = niIt.Get();
-	    if ( grayVal <= currentValue )
-	      { fah.Push( currentValue, inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); }
-	    else
-	      { fah.Push( grayVal, inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); }
+	    // compute priority using marker and grayVal
+	    RealType priority=computePriority(StatsMap, marker, grayVal);
+	    fah.Push(priority, 
+		     inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); 
 	    // mark it as already in the fah
 	    nsIt.Set( true );
 	    }
@@ -258,14 +266,12 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	}
       // one more pixel in the flooding stage
       progress.CompletedPixel();
-      // remove the processed pixel of the queue
-      fah.Pop();
       }
     }
 
 
   //---------------------------------------------------------------------------
-  // Beucher's algorithm
+  // based on Beucher's algorithm for watershed transform
   //---------------------------------------------------------------------------
   else
     {
@@ -303,8 +309,12 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	  }
 	if ( haveBgNeighbor )
 	  {
-	  // there is a background pixel in the neighborhood; add to fah
-	  fah.Push( inputIt.GetCenterPixel(), markerIt.GetIndex() );
+	  // there is a background pixel in the neighborhood; add to
+	  // fah
+	  // compute priority
+	  RealType priority=computePriority(StatsMap, markerPixel,
+					    inputIt.GetCenterPixel());
+	  fah.Push(priority, markerIt.GetIndex() );
 	  }
 	else
 	  {
@@ -329,8 +339,11 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
     while( !fah.Empty() )
       {
       // store the current vars
-      const InputImagePixelType & currentValue = fah.FrontKey();
       const IndexType & idx = fah.FrontValue();
+      // remove the processed pixel of the queue -- different to the
+      // watershed because new pixels may get added with higher
+      // priority than the current one
+      fah.Pop();
       
       // move the iterators to the right place
       OffsetType shift = idx - outputIt.GetIndex();
@@ -348,22 +361,85 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 	  {
 	  // the pixel is not yet processed. It can be labeled with the current label
 	  noIt.Set( currentMarker );
+	  // update region statistics
 	  const InputImagePixelType & grayVal = niIt.Get();
-	  if ( grayVal <= currentValue )
-	    { fah.Push( currentValue, inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); }
-            else
-              { fah.Push( grayVal, inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); }
+	  updateRegion(StatsMap, currentMarker, grayVal);
+	  // compute priority and place on the queue
+	  RealType priority=computePriority(StatsMap, currentMarker, grayVal);
+	  fah.Push(priority, 
+		   inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); 
 	  progress.CompletedPixel();
 	  }
 	}
-      // remove the processed pixel of the queue
-      fah.Pop();
       }
     }
   
 }
 
+template<class TInputImage, class TLabelImage>
+void 
+SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
+::InitMap(StatsMapType &SM, LabelImageConstPointer LabelIm, InputImageConstPointer InputIm)
+{
+  // iterate over both images and build the map
+  typedef typename itk::ImageRegionConstIterator<InputImageType> RawIterType;
+  typedef typename itk::ImageRegionConstIterator<LabelImageType> LabIterType;
 
+  RawIterType rit(InputIm, InputIm->GetLargestPossibleRegion());
+  LabIterType lit(LabelIm, LabelIm->GetLargestPossibleRegion());
+
+  rit.GoToBegin();
+  lit.GoToBegin();
+  while(!lit.IsAtEnd())
+    {
+    LabelImagePixelType V = lit.Get();
+    if (V)
+      {
+      // found a region
+      ++SM[V].m_Count;
+      SM[V].m_Sum += rit.Get();
+      }
+    ++lit;
+    ++rit;
+    }
+
+
+  // iterate over the map for debugging purposes
+  typename StatsMapType::iterator mit;
+  for (mit = SM.begin(); mit != SM.end(); mit++)
+    {
+    std::cout << (int)mit->first << " [" << mit->second.m_Count << ", " << mit->second.m_Sum << "]" << std::endl;
+
+    }
+
+
+}
+
+// these two should probably become methods of the RegionStatistics class
+
+template<class TInputImage, class TLabelImage>
+typename SeededRegionGrowingImageFilter<TInputImage, TLabelImage>::RealType 
+SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
+::computePriority(const StatsMapType StatsMap,
+		  LabelImagePixelType region,
+		  InputImagePixelType candidate)
+{
+  typename StatsMapType::const_iterator reg = StatsMap.find(region);
+  RealType regmean = reg->second.m_Sum/((RealType)reg->second.m_Count);
+  return (RealType)fabs(regmean - (RealType)candidate);
+}
+
+template<class TInputImage, class TLabelImage>
+void
+SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
+::updateRegion(StatsMapType &StatsMap,
+	       LabelImagePixelType region,
+	       InputImagePixelType candidate)
+{
+  typename StatsMapType::iterator reg = StatsMap.find(region);
+  ++(reg->second.m_Count);
+  reg->second.m_Sum += (RealType)candidate;
+}
 
 template<class TInputImage, class TLabelImage>
 void

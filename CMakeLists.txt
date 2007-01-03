@@ -3,6 +3,7 @@ PROJECT(seededRegionGrowing)
 
 # set the name of the input image used to run the test
 SET(INPUT_IMAGE ${CMAKE_SOURCE_DIR}/images/cthead1.png)
+SET(INPUT_SEED ${CMAKE_SOURCE_DIR}/images/ctseeds.png)
 
 #include some macros from another file...
 INCLUDE(IJMacros.txt)
@@ -76,5 +77,9 @@ ENDIF(BUILD_TESTING)
 #any tests you can comment out or delete the following line.
 # ADD_TEST(Testname ExecutableToRun arg1 arg2 arg3)
 
-ADD_TEST(Run check ${INPUT_IMAGE} out.png)
-ADD_TEST(CompareImage ${IMAGE_COMPARE} out.png ${CMAKE_SOURCE_DIR}/images/test.png)
+ADD_TEST(Run1 check ${INPUT_IMAGE} ${INPUT_SEED} out1.png 0 0)
+ADD_TEST(Run2 check ${INPUT_IMAGE} ${INPUT_SEED} out2.png 0 1)
+ADD_TEST(Run3 check ${INPUT_IMAGE} ${INPUT_SEED} out3.png 1 0)
+ADD_TEST(Run4 check ${INPUT_IMAGE} ${INPUT_SEED} out4.png 1 1)
+
+#ADD_TEST(CompareImage ${IMAGE_COMPARE} out.png ${CMAKE_SOURCE_DIR}/images/test.png)

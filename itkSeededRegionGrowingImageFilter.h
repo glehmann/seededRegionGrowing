@@ -13,7 +13,16 @@ namespace itk {
  * to define a stopping point, as with the "traditional" region
  * growing approaches. However there must be enough seed regions in
  * the right places to achieve what you want. In many ways this is
- * similar to the Morphological Watershed filter.
+ * similar to the morphological watershed filter, and much of the
+ * implementation is borrowed from that filter.
+ *
+ * The result is of type TLabelImage and will have the same labels as
+ * the input. Disconnected seeds with the same label will be treated
+ * as the same region.
+ *
+ * Seeded region growing can be applied directly to multichannel
+ * images (as soon as I figure out how to code that sort of thing) and
+ * can be easier to use with strongly anisotropic pixels.
  *
  * "Seeded region growing", R. Adams and L. Bischof, PAMI, 1994.
  *
@@ -22,7 +31,7 @@ namespace itk {
  * \sa WatershedImageFilter, MorphologicalWatershedImageFilter
  * \ingroup ImageEnhancement  MathematicalMorphologyImageFilters
  */
-template<class TInputImage, class TLabelImage>
+template<class TInputImage, class TLabelImage, class TRegionStats>
 class ITK_EXPORT SeededRegionGrowingImageFilter : 
     public ImageToImageFilter<TInputImage, TLabelImage>
 {
@@ -47,7 +56,7 @@ public:
   typedef typename LabelImageType::PixelType      LabelImagePixelType;
   
   typedef typename LabelImageType::IndexType      IndexType;
-  
+  typedef typename NumericTraits<InputImagePixelType>::RealType RealType;
   /** ImageDimension constants */
   itkStaticConstMacro(ImageDimension, unsigned int,
                       TInputImage::ImageDimension);
@@ -129,6 +138,31 @@ protected:
   /** Single-threaded version of GenerateData. */
   void GenerateData();
   
+  /** Data types to support the region statistics */
+
+  class RegionStatistics
+  {
+  public:
+    RegionStatistics()
+    {
+      m_Count = 0;
+      m_Sum = NumericTraits<RealType>::Zero;
+    }
+    
+    RealType m_Sum;
+    unsigned long m_Count;
+  };
+
+  typedef typename std::map<LabelImagePixelType, RegionStatistics> StatsMapType;
+
+  RealType computePriority(const StatsMapType StatsMap,
+			   LabelImagePixelType region,
+			   InputImagePixelType candidate);
+
+  void updateRegion(StatsMapType &StatsMap,
+		    LabelImagePixelType region,
+		    InputImagePixelType candidate);
+
 private:
   SeededRegionGrowingImageFilter(const Self&); //purposely not implemented
   void operator=(const Self&); //purposely not implemented
@@ -139,6 +173,8 @@ private:
   bool m_PadImageBoundary;
 
 
+  void InitMap(StatsMapType &SM, LabelImageConstPointer LabelIm, 
+	       InputImageConstPointer InputIm);
 } ; // end of class
 
 } // end namespace itk
