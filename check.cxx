@@ -3,13 +3,13 @@
 #include "itkCommand.h"
 #include "itkSimpleFilterWatcher.h"
 
-#include "itkImageFilter.h"
+#include "itkSeededRegionGrowingImageFilter.h"
 
 
 int main(int argc, char * argv[])
 {
 
-  if( argc !=  )
+  if( argc !=  3)
     {
     std::cerr << "usage: " << argv[0] << " " << std::endl;
     // std::cerr << "  : " << std::endl;
@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
   ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( argv[1] );
 
-  typedef itk::ImageFilter< IType, IType > FilterType;
+  typedef itk::SeededRegionGrowingImageFilter< IType, IType > FilterType;
   FilterType::Pointer filter = FilterType::New();
   filter->SetInput( reader->GetOutput() );
 
