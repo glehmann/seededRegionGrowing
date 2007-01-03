@@ -14,17 +14,6 @@ SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
 //   this->m_MarkBoundaryLine = true;
 }
 
-
-// template<class TInputImage, class TLabelImage>
-// void
-// SeededRegionGrowingImageFilter<TInputImage, TLabelImage>
-// ::PrintSelf(std::ostream &os, Indent indent) const
-// {
-//   Superclass::PrintSelf(os, indent);
-  
-//   os << indent << "FullyConnected: "  << this->m_FullyConnected << std::endl;
-//   os << indent << "MarkBoundaryLine: "  << this->m_MarkBoundaryLine << std::endl;
-// }
   
 }// end namespace itk
 #endif
