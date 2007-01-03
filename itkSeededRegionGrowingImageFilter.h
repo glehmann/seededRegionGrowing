@@ -66,12 +66,12 @@ private:
 
 } ; // end of class
 
-#ifndef ITK_MANUAL_INSTANTIATION
-#include "itkSeededRegionGrowingImageFilter.txx"
-#endif
 
 } // end namespace itk
   
+#ifndef ITK_MANUAL_INSTANTIATION
+#include "itkSeededRegionGrowingImageFilter.txx"
+#endif
 
 #endif
 
