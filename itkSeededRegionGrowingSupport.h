@@ -53,7 +53,7 @@ private:
     
     RealType m_Sum;
     unsigned long m_Count;
-  };
+  } RegionStatisticsType;
 
   typedef typename std::map<LabType, RegionStatisticsType> StatsMapType;
 
