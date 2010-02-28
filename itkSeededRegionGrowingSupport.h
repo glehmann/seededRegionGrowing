@@ -17,6 +17,11 @@ public:
   {
     typename StatsMapType::const_iterator reg = m_StatsMap.find(region);
     RealType regmean = reg->second.m_Sum/((RealType)reg->second.m_Count);
+//     if (region == 1) 
+//       {
+
+//       std::cout << "Reg 1" << regmean << " " << (int)candidate<< std::endl;
+//       }
     return (RealType)fabs(regmean - (RealType)candidate);
   }
 
@@ -33,6 +38,7 @@ public:
   {
     ++(m_StatsMap[region].m_Count);
     m_StatsMap[region].m_Sum += (RealType)candidate;
+   // std::cout << "Added " << (int) region << " " << m_StatsMap[region].m_Count << " " << m_StatsMap[region].m_Sum << std::endl;
   }
 
 private:

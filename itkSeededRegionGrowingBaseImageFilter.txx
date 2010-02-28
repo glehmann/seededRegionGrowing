@@ -10,8 +10,12 @@
 #include "itkConstantBoundaryCondition.h"
 #include "itkSize.h"
 #include "itkConnectedComponentAlgorithm.h"
-#include "itkPriorityQueue.h"
+//#include "itkPriorityQueue.h"
 #include "itkImageDuplicator.h"
+
+#include <queue>
+#include <map>
+
 namespace itk {
 
 template <class TInputImage,  class TLabelImage, class TRegionStats>
@@ -113,8 +117,12 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
   this->InitMap(StatsMap, this->GetMarkerImage(), this->GetInput());
 
   // FAH (in french: File d'Attente Hierarchique)
-  typedef PriorityQueue< RealType, IndexType > PriorityQueueType;
-  PriorityQueueType fah;
+  //typedef PriorityQueue< RealType, IndexType > PriorityQueueType;
+  typedef std::queue< IndexType >                    QueueType;
+  typedef std::map< RealType, QueueType > MapType;
+  MapType fah;
+
+  //PriorityQueueType fah;
   //---------------------------------------------------------------------------
   // based on Meyer's algorithm for watershed transform
   //---------------------------------------------------------------------------
@@ -156,7 +164,6 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       LabelImagePixelType markerPixel = markerIt.GetCenterPixel();
       if ( markerPixel != bgLabel )
 	{
-        
 	IndexType idx = markerIt.GetIndex();
         
 	// move the iterators to the right place
@@ -182,7 +189,9 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	    // add neighbors to the queue if they are background, and
 	    // haven't been added to the queue already
 	    RealType priority=StatsMap.computePriority(markerPixel, niIt.Get());
-	    fah.Push(priority, markerIt.GetIndex() + nmIt.GetNeighborhoodOffset() );
+	    //fah.Push(priority, markerIt.GetIndex() +
+	    //nmIt.GetNeighborhoodOffset() );
+	    fah[priority].push(markerIt.GetIndex() + nmIt.GetNeighborhoodOffset());
 	    // mark it as already in the fah to avoid adding it
 	    // several times  
 	    nsIt.Set( true );
@@ -199,7 +208,6 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       progress.CompletedPixel();
       }
     // end of init stage
-    
     // flooding
     // init all the iterators
     outputIt.GoToBegin();
@@ -207,14 +215,30 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
     inputIt.GoToBegin();
     
     // and start flooding
-    while( !fah.Empty() )
+    while( !fah.empty() )
       {
       // store the current vars
-      const IndexType & idx = fah.FrontValue();
+      //const IndexType & idx = fah.FrontValue();
       // remove the processed pixel of the queue -- different to the
       // watershed because new pixels may get added with higher
       // priority than the current one
-      fah.Pop();
+      //fah.Pop();
+      
+
+      //RealType currentValue = fah.begin()->first;
+      //QueueType currentQueue = fah.begin()->second;
+      // nasty - if this queue is empty, delete it and go back to the
+      // beginning of the loop
+      if (fah.begin()->second.empty()) 
+	{
+	fah.erase(fah.begin());
+	continue;
+	}
+
+//       IndexType idx = currentQueue.front();
+//       currentQueue.pop();
+      IndexType idx = fah.begin()->second.front();
+      fah.begin()->second.pop();
       
       // move the iterators to the right place
       OffsetType shift = idx - outputIt.GetIndex();
@@ -254,7 +278,9 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	      }
 	    }
 	  else
-	    { marker = o; }
+	    { 
+	    marker = o; 
+	    }
 	  }
 	}
       if( !collision )
@@ -274,8 +300,9 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	    InputImagePixelType grayVal = niIt.Get();
 	    // compute priority using marker and grayVal
 	    RealType priority=StatsMap.computePriority(marker, grayVal);
-	    fah.Push(priority, 
-		     inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); 
+// 	    fah.Push(priority, 
+// 		     inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); 
+	    fah[priority].push(inputIt.GetIndex() + niIt.GetNeighborhoodOffset());
 	    // mark it as already in the fah
 	    nsIt.Set( true );
 	    }
