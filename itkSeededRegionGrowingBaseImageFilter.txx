@@ -119,8 +119,10 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
   // FAH (in french: File d'Attente Hierarchique)
   //typedef PriorityQueue< RealType, IndexType > PriorityQueueType;
   typedef std::queue< IndexType >                    QueueType;
+//  typedef std::vector< IndexType >                    QueueType;
   typedef std::map< RealType, QueueType > MapType;
   MapType fah;
+
 
   //PriorityQueueType fah;
   //---------------------------------------------------------------------------
@@ -189,6 +191,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	    // add neighbors to the queue if they are background, and
 	    // haven't been added to the queue already
 	    RealType priority=StatsMap.computePriority(markerPixel, niIt.Get());
+	    priority = (RealType)(InputImagePixelType)round(priority);
 	    //fah.Push(priority, markerIt.GetIndex() +
 	    //nmIt.GetNeighborhoodOffset() );
 	    fah[priority].push(markerIt.GetIndex() + nmIt.GetNeighborhoodOffset());
@@ -231,6 +234,8 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       // beginning of the loop
       if (fah.begin()->second.empty()) 
 	{
+	// will this force disposal?
+	//QueueType currentQueue = fah.begin()->second;
 	fah.erase(fah.begin());
 	continue;
 	}
@@ -301,7 +306,11 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	    // compute priority using marker and grayVal
 	    RealType priority=StatsMap.computePriority(marker, grayVal);
 // 	    fah.Push(priority, 
-// 		     inputIt.GetIndex() + niIt.GetNeighborhoodOffset() ); 
+// 		     inputIt.GetIndex() + niIt.GetNeighborhoodOffset()
+// 		     ); 
+
+	    // this won't work well with floating point input
+	    priority = (RealType)(InputImagePixelType)round(priority);
 	    fah[priority].push(inputIt.GetIndex() + niIt.GetNeighborhoodOffset());
 	    // mark it as already in the fah
 	    nsIt.Set( true );
