@@ -83,7 +83,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
   if ( this->GetMarkerImage()->GetRequestedRegion().GetSize() != this->GetInput()->GetRequestedRegion().GetSize() )
     { itkExceptionMacro( << "Marker and input must have the same size." ); }
   
-
+	typedef typename InputImageType::OffsetValueType OffScalar;
   // the radius which will be used for all the shaped iterators
   Size< ImageDimension > radius;
   radius.Fill(1);
@@ -118,8 +118,9 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 
   // FAH (in french: File d'Attente Hierarchique)
   //typedef PriorityQueue< RealType, IndexType > PriorityQueueType;
-  typedef std::queue< IndexType >                    QueueType;
-//  typedef std::vector< IndexType >                    QueueType;
+//	typedef std::queue< IndexType >                    QueueType;
+	typedef std::queue< OffScalar >                    QueueType;
+  // typedef std::queue< IndexType, std::list<IndexType> >                    QueueType;
   typedef std::map< RealType, QueueType > MapType;
   MapType fah;
 
@@ -193,7 +194,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 	    priority = (RealType)(InputImagePixelType)round(priority);
 	    //fah.Push(priority, markerIt.GetIndex() +
 	    //nmIt.GetNeighborhoodOffset() );
-	    fah[priority].push(markerIt.GetIndex() + nmIt.GetNeighborhoodOffset());
+	    fah[priority].push(this->GetMarkerImage()->ComputeOffset(markerIt.GetIndex() + nmIt.GetNeighborhoodOffset()));
 	    // mark it as already in the fah to avoid adding it
 	    // several times  
 	    nsIt.Set( true );
@@ -249,7 +250,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 
 //       IndexType idx = currentQueue.front();
 //       currentQueue.pop();
-      IndexType idx = fah.begin()->second.front();
+      IndexType idx = this->GetMarkerImage()->ComputeIndex(fah.begin()->second.front());
       fah.begin()->second.pop();
       
       // move the iterators to the right place
@@ -318,7 +319,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
 
 	    // this won't work well with floating point input
 	    priority = (RealType)(InputImagePixelType)round(priority);
-	    fah[priority].push(inputIt.GetIndex() + niIt.GetNeighborhoodOffset());
+	    fah[priority].push(this->GetMarkerImage()->ComputeOffset(inputIt.GetIndex() + niIt.GetNeighborhoodOffset()));
 	    // mark it as already in the fah
 	    nsIt.Set( true );
 	    }
@@ -337,7 +338,6 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       progress.CompletedPixel();
       }
     }
-    std::cout << "Maximum map size = " << maxmapsize << std::endl;
 }
 
 template<class TInputImage,  class TLabelImage, class TRegionStats>
