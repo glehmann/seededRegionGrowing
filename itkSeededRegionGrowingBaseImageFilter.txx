@@ -123,7 +123,6 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
   typedef std::map< RealType, QueueType > MapType;
   MapType fah;
 
-
   //PriorityQueueType fah;
   //---------------------------------------------------------------------------
   // based on Meyer's algorithm for watershed transform
@@ -217,6 +216,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
     statusIt.GoToBegin();
     inputIt.GoToBegin();
     
+
     // and start flooding
     while( !fah.empty() )
       {
@@ -226,7 +226,14 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       // watershed because new pixels may get added with higher
       // priority than the current one
       //fah.Pop();
-      
+
+//       size_t totalsize  = 0;
+//       for (typename MapType::iterator mit = fah.begin(); mit != fah.end(); mit++)
+// 	{
+// 	totalsize += mit->second.size();
+// 	}
+// //      std::cout << maxmapsize << std::endl;
+//       maxmapsize = std::max(maxmapsize, totalsize);
 
       //RealType currentValue = fah.begin()->first;
       //QueueType currentQueue = fah.begin()->second;
@@ -330,7 +337,7 @@ SeededRegionGrowingBaseImageFilter<TInputImage, TLabelImage, TRegionStats>
       progress.CompletedPixel();
       }
     }
-  
+    std::cout << "Maximum map size = " << maxmapsize << std::endl;
 }
 
 template<class TInputImage,  class TLabelImage, class TRegionStats>
